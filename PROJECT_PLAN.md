@@ -211,6 +211,48 @@ Each template includes: a background image, default text placement, suggested co
 - Countdown page for scheduled cards
 - Auto-reveal after scheduled time
 
+## Project Management
+
+**Tool:** Shortcut (integrated with GitHub)
+
+### Workflow
+
+| State | Trigger |
+|-------|---------|
+| Unstarted | Story created |
+| In Progress | Branch created or story manually moved |
+| In Review | Pull request opened |
+| Done | Pull request merged |
+
+State transitions are automated via the Shortcut-GitHub integration.
+
+### Structure
+
+- **Epics** map to implementation phases (Foundation, Auth, Cards, Sharing, Media, Polish)
+- **Stories** are individual tasks within each epic, typed as `feature`, `bug`, or `chore`
+
+### Branch Naming
+
+Branches are auto-generated from Shortcut stories using the format:
+
+```
+[story_type]/[story_id]/[story_name]
+```
+
+Examples:
+```
+feature/sc-123/card-editor
+bug/sc-456/fix-auth-redirect
+chore/sc-789/docker-setup
+```
+
+### PR Workflow
+
+1. Create a story in Shortcut and assign it
+2. Use Shortcut's "Create branch" button — auto-generates the branch name
+3. Push commits and open a PR — Shortcut auto-links it and moves story to "In Review"
+4. After code review, merge the PR — story moves to "Done"
+
 ## Open Decisions
 
 | Decision | Options | Notes |
