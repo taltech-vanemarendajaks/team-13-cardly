@@ -2,7 +2,7 @@
 FROM node:20
 
 # Set the working directory inside the container
-WORKDIR /backend
+WORKDIR /
 
 # Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
@@ -13,9 +13,6 @@ RUN npm install
 # Copy the rest of the application files
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
-
 # Build the NestJs application
 RUN npm run build
 
@@ -23,4 +20,4 @@ RUN npm run build
 EXPOSE 3001
 
 # Command to run the application
-CMD ["node", "dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma generate && node dist/src/main.js"]
