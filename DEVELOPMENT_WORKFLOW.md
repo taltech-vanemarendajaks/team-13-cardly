@@ -90,6 +90,33 @@ git pull origin main
 git branch -d feature/sc-123/card-editor
 ```
 
+## Local Auth Testing
+
+Google OAuth now uses a cookie-based refresh flow:
+evokes the stored refresh-token hash in the database
+
+- `GET /auth/google` starts the OAuth flow
+- `GET /auth/google/callback` sets the refresh token as an `HttpOnly` cookie and redirects to the frontend
+- `POST /auth/refresh` reads the refresh token from the cookie and returns only a short-lived access token
+- `POST /auth/logout` clears the refresh-token cookie and r
+Local development defaults:
+
+- refresh-token cookie uses `secure=false`
+- refresh-token cookie uses `SameSite=Lax`
+- frontend requests to the backend must include credentials, for example `fetch(..., { credentials: 'include' })`
+
+Production defaults:
+
+- refresh-token cookie must use `secure=true`
+- backend must be served over HTTPS
+- for cross-site frontend/backend deployments, use `SameSite=None`
+- frontend requests must still include credentials
+
+When testing locally, expect `/auth/refresh` responses to return only:
+
+- `accessToken`
+- `accessTokenExpiresIn`
+
 ## Quick Reference
 
 | Step           | Action                              | Where               |
