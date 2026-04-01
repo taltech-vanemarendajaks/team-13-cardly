@@ -1,10 +1,13 @@
+import { createHash, randomUUID } from 'node:crypto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import type { CookieOptions } from 'express';
 import type { StringValue } from 'ms';
 import { Profile } from 'passport-google-oauth20';
 import { UsersService } from '../users/users.service';
+import { REFRESH_TOKEN_COOKIE_NAME } from './constants/auth.constants';
 import { AuthUser } from './interfaces/auth-user.interface';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
@@ -43,7 +46,7 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string) {
+  async refresh(refreshToken?: string) {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
@@ -64,7 +67,10 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is invalid');
     }
 
-    const refreshTokenMatches = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+    const refreshTokenMatches = await bcrypt.compare(
+      this.normalizeRefreshToken(refreshToken),
+      user.refreshTokenHash,
+    );
 
     if (!refreshTokenMatches) {
       throw new UnauthorizedException('Refresh token is invalid');
@@ -94,6 +100,10 @@ export class AuthService {
       sub: user.id,
       email: user.email,
     };
+    const refreshPayload: JwtPayload = {
+      ...payload,
+      jti: randomUUID(),
+    };
     const accessTokenExpiresIn = (this.configService.get<string>('JWT_ACCESS_EXPIRY') ??
       '15m') as StringValue;
     const refreshTokenExpiresIn = (this.configService.get<string>('JWT_REFRESH_EXPIRY') ??
@@ -104,7 +114,7 @@ export class AuthService {
         secret: this.getAccessTokenSecret(),
         expiresIn: accessTokenExpiresIn,
       }),
-      this.jwtService.signAsync(payload, {
+      this.jwtService.signAsync(refreshPayload, {
         secret: this.getRefreshTokenSecret(),
         expiresIn: refreshTokenExpiresIn,
       }),
@@ -125,7 +135,11 @@ export class AuthService {
     );
     const saltRounds = Number.isNaN(configuredRounds) || configuredRounds < 10 ? 10 : configuredRounds;
 
-    return bcrypt.hash(refreshToken, saltRounds);
+    return bcrypt.hash(this.normalizeRefreshToken(refreshToken), saltRounds);
+  }
+
+  private normalizeRefreshToken(refreshToken: string) {
+    return createHash('sha256').update(refreshToken).digest('hex');
   }
 
   private getAccessTokenSecret() {
@@ -146,5 +160,36 @@ export class AuthService {
     }
 
     return secret;
+  }
+
+  getRefreshTokenCookieName() {
+    return REFRESH_TOKEN_COOKIE_NAME;
+  }
+
+  getRefreshTokenCookieOptions(): CookieOptions {
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+
+    return {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/auth',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+  }
+
+  getRefreshTokenCookieClearOptions(): CookieOptions {
+    const { maxAge: _maxAge, ...cookieOptions } = this.getRefreshTokenCookieOptions();
+
+    return cookieOptions;
+  }
+
+  getFrontendRedirectUrl() {
+    const frontendBaseUrl = this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    const redirectUrl = new URL(frontendBaseUrl);
+
+    redirectUrl.searchParams.set('auth', 'success');
+
+    return redirectUrl.toString();
   }
 }
