@@ -12,10 +12,10 @@ import {
 import { CardsService } from '../cards/service/cards.service';
 import { CreateCardDto } from '../cards/dto/create-card.dto';
 import { UpdateCardDto } from '../cards/dto/update-card.dto';
-//import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('cards')
-//@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class CardsController {
   constructor(private readonly cardsService: CardsService) {}
 
