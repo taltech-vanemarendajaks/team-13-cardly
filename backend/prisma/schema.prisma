@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output  = "../src/generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -9,14 +8,15 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String?
-  googleId     String   @unique
-  avatarUrl    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  cards        Card[]
+  id               String   @id @default(uuid())
+  email            String   @unique
+  name             String?
+  googleId         String   @unique
+  avatarUrl        String?
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  cards            Card[]
 }
 
 model Card {
