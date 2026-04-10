@@ -1,82 +1,82 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
-import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { GoogleAuthGuard } from './guards/google-auth.guard';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-
-type AuthenticatedRequest = Request & {
-  cookies?: Record<string, string | undefined>;
-  user: {
-    id: string;
-    email: string;
-    name?: string | null;
-    avatarUrl?: string | null;
-  };
-};
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import * as express from 'express';
+import { AuthService } from './auth.service.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private auth: AuthService) {}
 
-  @Get('google')
-  @UseGuards(GoogleAuthGuard)
-  googleLogin() {
-    return;
-  }
-
-  @Get('google/callback')
-  @UseGuards(GoogleAuthGuard)
-  async googleCallback(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    const session = await this.authService.login(req.user);
-
-    res.cookie(
-      this.authService.getRefreshTokenCookieName(),
-      session.refreshToken,
-      this.authService.getRefreshTokenCookieOptions(),
-    );
-
-    return res.redirect(this.authService.getFrontendRedirectUrl());
-  }
-
-  @Post('refresh')
-  @HttpCode(200)
-  async refresh(
-    @Req() req: AuthenticatedRequest,
-    @Res({ passthrough: true }) res: Response,
-    @Body() body: RefreshTokenDto,
+  // POST /auth/google/token
+  @Post('google/token')
+  async googleToken(
+    @Body('accessToken') accessToken: string,
+    @Res({ passthrough: true }) res: express.Response,
   ) {
-    const refreshToken =
-      req.cookies?.[this.authService.getRefreshTokenCookieName()] ?? body?.refreshToken;
-    const session = await this.authService.refresh(refreshToken);
-
-    res.cookie(
-      this.authService.getRefreshTokenCookieName(),
-      session.refreshToken,
-      this.authService.getRefreshTokenCookieOptions(),
-    );
-
-    return {
-      accessToken: session.accessToken,
-      accessTokenExpiresIn: session.accessTokenExpiresIn,
-    };
+    const result = await this.auth.googleToken(accessToken);
+    this.setTokenCookie(res, result.token);
+    return { user: result.user, isNewUser: result.isNewUser };
   }
 
+  // POST /auth/register
+  @Post('register')
+  async register(
+    @Body('email') email: string,
+    @Body('password') password: string,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const result = await this.auth.register(email, password);
+    this.setTokenCookie(res, result.token);
+    return { user: result.user };
+  }
+
+  // POST /auth/login
+  @Post('login')
+  async login(
+    @Body('email') email: string,
+    @Body('password') password: string,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const result = await this.auth.login(email, password);
+    this.setTokenCookie(res, result.token);
+    return { user: result.user };
+  }
+
+  // GET /auth/me
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async me(@Req() req: express.Request) {
+    const userId = (req as express.Request & { userId: string }).userId;
+    return this.auth.me(userId);
+  }
+
+  // POST /auth/logout
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(200)
-  async logout(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Response) {
-    res.clearCookie(
-      this.authService.getRefreshTokenCookieName(),
-      this.authService.getRefreshTokenCookieClearOptions(),
-    );
-
-    return this.authService.logout(req.user.id);
+  logout(@Res({ passthrough: true }) res: express.Response) {
+    res.clearCookie('token', {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+    return { ok: true };
   }
 
-  @Get('profile')
-  @UseGuards(JwtAuthGuard)
-  getProfile(@Req() req: AuthenticatedRequest) {
-    return req.user;
+  // ── Helpers ──
+
+  private setTokenCookie(res: express.Response, token: string) {
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/',
+    });
   }
 }

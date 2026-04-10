@@ -1,195 +1,152 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-import type { CookieOptions } from 'express';
-import type { StringValue } from 'ms';
-import { Profile } from 'passport-google-oauth20';
-import { UsersService } from '../users/users.service';
-import { REFRESH_TOKEN_COOKIE_NAME } from './constants/auth.constants';
-import { AuthUser } from './interfaces/auth-user.interface';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
+import { PrismaService } from '../prisma/prisma.service.js';
+
+interface GoogleUserInfo {
+  sub: string;
+  email: string;
+  name?: string;
+  picture?: string;
+  email_verified?: boolean;
+}
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+}
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
-  ) {}
-
-  async validateGoogleUser(profile: Profile) {
-    const email = profile.emails?.[0]?.value?.trim().toLowerCase();
-
-    if (!email) {
-      throw new UnauthorizedException('Google account did not provide an email address');
-    }
-
-    return this.usersService.findOrCreateGoogleUser({
-      email,
-      name: profile.displayName,
-      googleId: profile.id,
-      avatarUrl: profile.photos?.[0]?.value,
-    });
-  }
-
-  async login(user: AuthUser) {
-    const tokens = await this.generateTokens(user);
-    const refreshTokenHash = await this.hashRefreshToken(tokens.refreshToken);
-
-    await this.usersService.saveRefreshTokenHash(user.id, refreshTokenHash);
-
-    return {
-      ...tokens,
-      user,
-    };
-  }
-
-  async refresh(refreshToken?: string) {
-    if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token is required');
-    }
-
-    let payload: JwtPayload;
-
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
-        secret: this.getRefreshTokenSecret(),
-      });
-    } catch {
-      throw new UnauthorizedException('Refresh token is invalid or expired');
-    }
-
-    const user = await this.usersService.findByIdForRefresh(payload.sub);
-
-    if (!user?.refreshTokenHash) {
-      throw new UnauthorizedException('Refresh token is invalid');
-    }
-
-    const refreshTokenMatches = await bcrypt.compare(
-      this.normalizeRefreshToken(refreshToken),
-      user.refreshTokenHash,
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private config: ConfigService,
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.config.get<string>('GOOGLE_CLIENT_ID'),
     );
+  }
 
-    if (!refreshTokenMatches) {
-      throw new UnauthorizedException('Refresh token is invalid');
+  // ── Google OAuth ──────────────────────────────────────────────
+
+  async googleToken(accessToken: string) {
+    // Verify access token with Google's userinfo endpoint
+    const res = await fetch(
+      `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`,
+    );
+    if (!res.ok) throw new UnauthorizedException('Invalid Google token');
+
+    const info = (await res.json()) as GoogleUserInfo;
+    if (!info.email) throw new UnauthorizedException('No email from Google');
+
+    // Find or create user
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ googleId: info.sub }, { email: info.email }],
+      },
+    });
+
+    let isNewUser = false;
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: info.email,
+          name: info.name ?? null,
+          googleId: info.sub,
+          avatarUrl: info.picture ?? null,
+        },
+      });
+      isNewUser = true;
+    } else if (!user.googleId) {
+      // Link Google to existing email/password account
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: info.sub, avatarUrl: user.avatarUrl ?? info.picture },
+      });
     }
 
-    const tokens = await this.generateTokens({
+    const token = this.signToken(user.id, user.email);
+    return { token, user: this.sanitizeUser(user), isNewUser };
+  }
+
+  // ── Email / Password ─────────────────────────────────────────
+
+  async register(email: string, password: string) {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) throw new ConflictException('Email already registered');
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await this.prisma.user.create({
+      data: { email, passwordHash },
+    });
+
+    const token = this.signToken(user.id, user.email);
+    return { token, user: this.sanitizeUser(user) };
+  }
+
+  async login(email: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Invalid credentials');
+
+    const token = this.signToken(user.id, user.email);
+    return { token, user: this.sanitizeUser(user) };
+  }
+
+  // ── Session ───────────────────────────────────────────────────
+
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    return this.sanitizeUser(user);
+  }
+
+  // ── JWT helpers ───────────────────────────────────────────────
+
+  signToken(userId: string, email: string): string {
+    const payload: JwtPayload = { sub: userId, email };
+    return this.jwt.sign(payload, { expiresIn: '30d' });
+  }
+
+  verifyToken(token: string): JwtPayload {
+    try {
+      return this.jwt.verify<JwtPayload>(token);
+    } catch {
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────
+
+  private sanitizeUser(user: {
+    id: string;
+    email: string;
+    name: string | null;
+    avatarUrl: string | null;
+    googleId?: string | null;
+    passwordHash?: string | null;
+  }) {
+    return {
       id: user.id,
       email: user.email,
-    });
-    const nextRefreshTokenHash = await this.hashRefreshToken(tokens.refreshToken);
-
-    await this.usersService.saveRefreshTokenHash(user.id, nextRefreshTokenHash);
-
-    return tokens;
-  }
-
-  async logout(userId: string) {
-    await this.usersService.clearRefreshTokenHash(userId);
-
-    return {
-      message: 'Logged out successfully',
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      hasGoogle: !!user.googleId,
+      hasPassword: !!user.passwordHash,
     };
-  }
-
-  private async generateTokens(user: Pick<AuthUser, 'id' | 'email'>) {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-    };
-    const refreshPayload: JwtPayload = {
-      ...payload,
-      jti: randomUUID(),
-    };
-    const accessTokenExpiresIn = (this.configService.get<string>('JWT_ACCESS_EXPIRY') ??
-      '15m') as StringValue;
-    const refreshTokenExpiresIn = (this.configService.get<string>('JWT_REFRESH_EXPIRY') ??
-      '7d') as StringValue;
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: this.getAccessTokenSecret(),
-        expiresIn: accessTokenExpiresIn,
-      }),
-      this.jwtService.signAsync(refreshPayload, {
-        secret: this.getRefreshTokenSecret(),
-        expiresIn: refreshTokenExpiresIn,
-      }),
-    ]);
-
-    return {
-      accessToken,
-      refreshToken,
-      accessTokenExpiresIn,
-      refreshTokenExpiresIn,
-    };
-  }
-
-  private async hashRefreshToken(refreshToken: string) {
-    const configuredRounds = Number.parseInt(
-      this.configService.get<string>('BCRYPT_SALT_ROUNDS') ?? '10',
-      10,
-    );
-    const saltRounds = Number.isNaN(configuredRounds) || configuredRounds < 10 ? 10 : configuredRounds;
-
-    return bcrypt.hash(this.normalizeRefreshToken(refreshToken), saltRounds);
-  }
-
-  private normalizeRefreshToken(refreshToken: string) {
-    return createHash('sha256').update(refreshToken).digest('hex');
-  }
-
-  private getAccessTokenSecret() {
-    const secret = this.configService.get<string>('JWT_SECRET');
-
-    if (!secret) {
-      throw new Error('JWT_SECRET must be configured');
-    }
-
-    return secret;
-  }
-
-  private getRefreshTokenSecret() {
-    const secret = this.configService.get<string>('JWT_REFRESH_SECRET');
-
-    if (!secret) {
-      throw new Error('JWT_REFRESH_SECRET must be configured');
-    }
-
-    return secret;
-  }
-
-  getRefreshTokenCookieName() {
-    return REFRESH_TOKEN_COOKIE_NAME;
-  }
-
-  getRefreshTokenCookieOptions(): CookieOptions {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
-
-    return {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
-      path: '/auth',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    };
-  }
-
-  getRefreshTokenCookieClearOptions(): CookieOptions {
-    const { maxAge: _maxAge, ...cookieOptions } = this.getRefreshTokenCookieOptions();
-
-    return cookieOptions;
-  }
-
-  getFrontendRedirectUrl() {
-    const frontendBaseUrl = this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
-    const redirectUrl = new URL(frontendBaseUrl);
-
-    redirectUrl.searchParams.set('auth', 'success');
-
-    return redirectUrl.toString();
   }
 }

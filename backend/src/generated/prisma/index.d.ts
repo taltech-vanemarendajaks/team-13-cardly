@@ -1124,8 +1124,8 @@ export namespace Prisma {
     email: string | null
     name: string | null
     googleId: string | null
+    passwordHash: string | null
     avatarUrl: string | null
-    refreshTokenHash: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1135,8 +1135,8 @@ export namespace Prisma {
     email: string | null
     name: string | null
     googleId: string | null
+    passwordHash: string | null
     avatarUrl: string | null
-    refreshTokenHash: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1146,8 +1146,8 @@ export namespace Prisma {
     email: number
     name: number
     googleId: number
+    passwordHash: number
     avatarUrl: number
-    refreshTokenHash: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1159,8 +1159,8 @@ export namespace Prisma {
     email?: true
     name?: true
     googleId?: true
+    passwordHash?: true
     avatarUrl?: true
-    refreshTokenHash?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1170,8 +1170,8 @@ export namespace Prisma {
     email?: true
     name?: true
     googleId?: true
+    passwordHash?: true
     avatarUrl?: true
-    refreshTokenHash?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1181,8 +1181,8 @@ export namespace Prisma {
     email?: true
     name?: true
     googleId?: true
+    passwordHash?: true
     avatarUrl?: true
-    refreshTokenHash?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1264,9 +1264,9 @@ export namespace Prisma {
     id: string
     email: string
     name: string | null
-    googleId: string
+    googleId: string | null
+    passwordHash: string | null
     avatarUrl: string | null
-    refreshTokenHash: string | null
     createdAt: Date
     updatedAt: Date
     _count: UserCountAggregateOutputType | null
@@ -1293,8 +1293,8 @@ export namespace Prisma {
     email?: boolean
     name?: boolean
     googleId?: boolean
+    passwordHash?: boolean
     avatarUrl?: boolean
-    refreshTokenHash?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     cards?: boolean | User$cardsArgs<ExtArgs>
@@ -1306,8 +1306,8 @@ export namespace Prisma {
     email?: boolean
     name?: boolean
     googleId?: boolean
+    passwordHash?: boolean
     avatarUrl?: boolean
-    refreshTokenHash?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["user"]>
@@ -1317,8 +1317,8 @@ export namespace Prisma {
     email?: boolean
     name?: boolean
     googleId?: boolean
+    passwordHash?: boolean
     avatarUrl?: boolean
-    refreshTokenHash?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["user"]>
@@ -1328,13 +1328,13 @@ export namespace Prisma {
     email?: boolean
     name?: boolean
     googleId?: boolean
+    passwordHash?: boolean
     avatarUrl?: boolean
-    refreshTokenHash?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "googleId" | "avatarUrl" | "refreshTokenHash" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "googleId" | "passwordHash" | "avatarUrl" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     cards?: boolean | User$cardsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -1351,9 +1351,9 @@ export namespace Prisma {
       id: string
       email: string
       name: string | null
-      googleId: string
+      googleId: string | null
+      passwordHash: string | null
       avatarUrl: string | null
-      refreshTokenHash: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["user"]>
@@ -1784,8 +1784,8 @@ export namespace Prisma {
     readonly email: FieldRef<"User", 'String'>
     readonly name: FieldRef<"User", 'String'>
     readonly googleId: FieldRef<"User", 'String'>
+    readonly passwordHash: FieldRef<"User", 'String'>
     readonly avatarUrl: FieldRef<"User", 'String'>
-    readonly refreshTokenHash: FieldRef<"User", 'String'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
   }
@@ -4532,8 +4532,8 @@ export namespace Prisma {
     email: 'email',
     name: 'name',
     googleId: 'googleId',
+    passwordHash: 'passwordHash',
     avatarUrl: 'avatarUrl',
-    refreshTokenHash: 'refreshTokenHash',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4703,9 +4703,9 @@ export namespace Prisma {
     id?: StringFilter<"User"> | string
     email?: StringFilter<"User"> | string
     name?: StringNullableFilter<"User"> | string | null
-    googleId?: StringFilter<"User"> | string
+    googleId?: StringNullableFilter<"User"> | string | null
+    passwordHash?: StringNullableFilter<"User"> | string | null
     avatarUrl?: StringNullableFilter<"User"> | string | null
-    refreshTokenHash?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     cards?: CardListRelationFilter
@@ -4715,9 +4715,9 @@ export namespace Prisma {
     id?: SortOrder
     email?: SortOrder
     name?: SortOrderInput | SortOrder
-    googleId?: SortOrder
+    googleId?: SortOrderInput | SortOrder
+    passwordHash?: SortOrderInput | SortOrder
     avatarUrl?: SortOrderInput | SortOrder
-    refreshTokenHash?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     cards?: CardOrderByRelationAggregateInput
@@ -4731,8 +4731,8 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     name?: StringNullableFilter<"User"> | string | null
+    passwordHash?: StringNullableFilter<"User"> | string | null
     avatarUrl?: StringNullableFilter<"User"> | string | null
-    refreshTokenHash?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     cards?: CardListRelationFilter
@@ -4742,9 +4742,9 @@ export namespace Prisma {
     id?: SortOrder
     email?: SortOrder
     name?: SortOrderInput | SortOrder
-    googleId?: SortOrder
+    googleId?: SortOrderInput | SortOrder
+    passwordHash?: SortOrderInput | SortOrder
     avatarUrl?: SortOrderInput | SortOrder
-    refreshTokenHash?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: UserCountOrderByAggregateInput
@@ -4759,9 +4759,9 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"User"> | string
     email?: StringWithAggregatesFilter<"User"> | string
     name?: StringNullableWithAggregatesFilter<"User"> | string | null
-    googleId?: StringWithAggregatesFilter<"User"> | string
+    googleId?: StringNullableWithAggregatesFilter<"User"> | string | null
+    passwordHash?: StringNullableWithAggregatesFilter<"User"> | string | null
     avatarUrl?: StringNullableWithAggregatesFilter<"User"> | string | null
-    refreshTokenHash?: StringNullableWithAggregatesFilter<"User"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
   }
@@ -4925,9 +4925,9 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
-    googleId: string
+    googleId?: string | null
+    passwordHash?: string | null
     avatarUrl?: string | null
-    refreshTokenHash?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     cards?: CardCreateNestedManyWithoutUserInput
@@ -4937,9 +4937,9 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
-    googleId: string
+    googleId?: string | null
+    passwordHash?: string | null
     avatarUrl?: string | null
-    refreshTokenHash?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     cards?: CardUncheckedCreateNestedManyWithoutUserInput
@@ -4949,9 +4949,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: StringFieldUpdateOperationsInput | string
+    googleId?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     cards?: CardUpdateManyWithoutUserNestedInput
@@ -4961,9 +4961,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: StringFieldUpdateOperationsInput | string
+    googleId?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     cards?: CardUncheckedUpdateManyWithoutUserNestedInput
@@ -4973,9 +4973,9 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
-    googleId: string
+    googleId?: string | null
+    passwordHash?: string | null
     avatarUrl?: string | null
-    refreshTokenHash?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4984,9 +4984,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: StringFieldUpdateOperationsInput | string
+    googleId?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4995,9 +4995,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: StringFieldUpdateOperationsInput | string
+    googleId?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5233,8 +5233,8 @@ export namespace Prisma {
     email?: SortOrder
     name?: SortOrder
     googleId?: SortOrder
+    passwordHash?: SortOrder
     avatarUrl?: SortOrder
-    refreshTokenHash?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5244,8 +5244,8 @@ export namespace Prisma {
     email?: SortOrder
     name?: SortOrder
     googleId?: SortOrder
+    passwordHash?: SortOrder
     avatarUrl?: SortOrder
-    refreshTokenHash?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5255,8 +5255,8 @@ export namespace Prisma {
     email?: SortOrder
     name?: SortOrder
     googleId?: SortOrder
+    passwordHash?: SortOrder
     avatarUrl?: SortOrder
-    refreshTokenHash?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5935,9 +5935,9 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
-    googleId: string
+    googleId?: string | null
+    passwordHash?: string | null
     avatarUrl?: string | null
-    refreshTokenHash?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5946,9 +5946,9 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
-    googleId: string
+    googleId?: string | null
+    passwordHash?: string | null
     avatarUrl?: string | null
-    refreshTokenHash?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -6001,9 +6001,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: StringFieldUpdateOperationsInput | string
+    googleId?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -6012,9 +6012,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: StringFieldUpdateOperationsInput | string
+    googleId?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     avatarUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

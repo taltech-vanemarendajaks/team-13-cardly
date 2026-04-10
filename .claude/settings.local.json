@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/kairokorgend/Developer/cardly/backend/.env*)",
+      "Bash(ls /Users/kairokorgend/Developer/cardly/.env*)"
+    ]
+  }
+}
