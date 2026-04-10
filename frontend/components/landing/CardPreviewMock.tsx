@@ -15,7 +15,7 @@ export function CardPreviewMock() {
   return (
     <div className="relative">
       {/* Browser window frame */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 dark:border-white/[0.10] dark:bg-[#0a0a0a] dark:shadow-black/30">
+      <div className="mx-auto max-w-[95%] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 dark:border-white/[0.10] dark:bg-[#0a0a0a] dark:shadow-black/30 md:max-w-5xl">
         {/* Title bar */}
         <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03]">
           <div className="flex gap-1.5">
@@ -29,7 +29,7 @@ export function CardPreviewMock() {
         </div>
 
         {/* Editor content */}
-        <div className="flex gap-0">
+        <div className="flex min-h-[420px] gap-0 md:min-h-[480px]">
           {/* Sidebar - templates */}
           <div className="hidden w-48 border-r border-slate-100 p-3 dark:border-white/[0.06] sm:block">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
