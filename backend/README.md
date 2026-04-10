@@ -4,11 +4,52 @@ REST API built with NestJS, Prisma ORM, and PostgreSQL.
 
 ## Tech Stack
 
-- NestJS
-- Prisma
-- PostgreSQL
-- Google OAuth 2.0
-- JWT access and refresh tokens
+- **NestJS** — modular Node.js framework with dependency injection
+- **Prisma ORM** — type-safe database client with migrations
+- **PostgreSQL** — relational database (runs via Docker)
+- **Passport.js** — Google OAuth 2.0 strategy
+- **JWT** — access + refresh token authentication
+- **bcrypt** — refresh token hashing
+
+## Project Structure
+
+```
+src/
+├── main.ts                 # Bootstrap (CORS, cookie-parser, validation pipe)
+├── app.module.ts           # Root module (ConfigModule, PrismaModule, AuthModule, UsersModule)
+├── auth/
+│   ├── auth.controller.ts  # /auth/* endpoints
+│   ├── auth.service.ts     # Token generation, validation, Google OAuth, refresh flow
+│   ├── auth.module.ts      # Wires Passport, JWT, strategies, guards
+│   ├── strategies/
+│   │   ├── google.strategy.ts  # Passport Google OAuth2 strategy
+│   │   └── jwt.strategy.ts     # Passport JWT strategy (reads access token from header)
+│   ├── guards/
+│   │   ├── google-auth.guard.ts
+│   │   └── jwt-auth.guard.ts
+│   ├── interfaces/
+│   │   ├── auth-user.interface.ts
+│   │   └── jwt-payload.interface.ts
+│   ├── dto/
+│   │   └── refresh-token.dto.ts
+│   └── constants/
+│       └── auth.constants.ts    # Cookie name constant
+├── users/
+│   ├── users.module.ts
+│   └── users.service.ts    # findOrCreateGoogleUser, saveRefreshTokenHash, etc.
+├── prisma/
+│   ├── prisma.module.ts    # Global Prisma module
+│   └── prisma.service.ts   # PrismaClient with adapter-pg
+├── cards/                  # Card CRUD (TBD)
+├── media/                  # Media upload (TBD)
+├── controller/
+│   └── health.controller.ts  # GET /health
+└── common/                 # Shared filters, interceptors (TBD)
+
+prisma/
+├── schema.prisma           # Database models (User, Card, Media)
+└── migrations/             # Prisma migration history
+```
 
 ## Getting Started
 
@@ -16,68 +57,117 @@ From the project root:
 
 ```bash
 cp .env.example .env
+# Fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_SECRET, JWT_REFRESH_SECRET
 docker compose up
 ```
 
 Backend: `http://localhost:3001`
 Database: `localhost:5432`
 
-To apply migrations:
+To run migrations manually:
 
 ```bash
-docker compose exec backend npx prisma migrate dev
+docker compose exec backend npx prisma migrate deploy
 ```
 
-## Auth Endpoints
+## API Endpoints
+
+### Auth
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| GET | `/auth/google` | Starts Google OAuth |
-| GET | `/auth/google/callback` | Sets refresh cookie and redirects to the frontend |
-| POST | `/auth/refresh` | Reads refresh token from cookie, rotates it, returns a new access token |
-| POST | `/auth/logout` | Clears refresh cookie and invalidates the stored refresh token hash |
-| GET | `/auth/profile` | Protected route for verifying `JwtAuthGuard` |
+| GET | `/auth/google` | Starts Google OAuth flow |
+| GET | `/auth/google/callback` | Sets refresh cookie, redirects to frontend |
+| POST | `/auth/refresh` | Rotates refresh token, returns new access token |
+| POST | `/auth/logout` | Clears cookie, invalidates stored refresh hash |
+| GET | `/auth/profile` | Returns authenticated user profile (requires JWT) |
+
+### Other
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/health` | Health check |
+
+### Cards (TBD)
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/cards` | List user's cards |
+| POST | `/cards` | Create new card |
+| GET | `/cards/:id` | Get card by ID |
+| PATCH | `/cards/:id` | Update card |
+| DELETE | `/cards/:id` | Delete card |
+| GET | `/cards/:id/public` | Public card view |
 
 ## Auth Cookie Flow
 
-The backend now uses a production-style token transport:
+1. `GET /auth/google` → redirects to Google consent screen
+2. `GET /auth/google/callback` → validates Google profile, creates/finds user, sets refresh token as `HttpOnly` cookie, redirects to frontend
+3. Frontend calls `POST /auth/refresh` with `credentials: 'include'` → rotates refresh cookie, returns short-lived access token
+4. Frontend stores access token in memory only (never localStorage)
+5. `POST /auth/logout` → clears cookie, invalidates hashed refresh token in database
 
-- `/auth/google/callback` no longer returns raw access and refresh token JSON in the browser.
-- The refresh token is stored in an `HttpOnly` cookie.
-- The frontend should call `/auth/refresh` with `credentials: 'include'` after redirect.
-- `/auth/refresh` rotates the refresh token cookie and returns a short-lived access token.
-- The frontend should keep the access token in memory only.
-- `/auth/logout` clears the cookie and invalidates the hashed refresh token in PostgreSQL.
+## Database Schema
+
+```
+User
+├── id            UUID (PK)
+├── email         String (unique)
+├── name          String?
+├── googleId      String (unique)
+├── avatarUrl     String?
+├── refreshTokenHash  String?
+├── createdAt     DateTime
+└── updatedAt     DateTime
+
+Card
+├── id            UUID (PK)
+├── title         String
+├── template      String?
+├── content       JSON (background, text elements, positions)
+├── thumbnailUrl  String?
+├── password      String? (bcrypt hash)
+├── isPublic      Boolean (default: true)
+├── scheduledAt   DateTime?
+├── userId        FK → User
+├── createdAt     DateTime
+└── updatedAt     DateTime
+
+Media
+├── id            UUID (PK)
+├── url           String (S3/R2 URL)
+├── type          String ("image" | "audio")
+├── filename      String
+├── size          Int
+├── cardId        FK → Card
+└── createdAt     DateTime
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Access token signing secret |
+| `JWT_REFRESH_SECRET` | Refresh token signing secret |
+| `JWT_ACCESS_EXPIRY` | Access token lifetime (default: `15m`) |
+| `JWT_REFRESH_EXPIRY` | Refresh token lifetime (default: `7d`) |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `GOOGLE_CALLBACK_URL` | OAuth callback URL (default: `http://localhost:3001/auth/google/callback`) |
+| `FRONTEND_URL` | Frontend URL for CORS and redirect (default: `http://localhost:3000`) |
+| `BCRYPT_SALT_ROUNDS` | bcrypt rounds for refresh token hashing (default: `10`) |
 
 ## Local Development
 
-- Cookie `secure` is `false` in development so `http://localhost` works.
-- Cookie `sameSite` is `lax` in development.
-- Backend CORS allows credentials for `http://localhost:3000` by default.
-- Frontend requests to the backend must use `credentials: 'include'`.
-
-Example frontend refresh request:
-
-```ts
-await fetch('http://localhost:3001/auth/refresh', {
-  method: 'POST',
-  credentials: 'include',
-});
-```
+- Cookie `secure` is `false` so `http://localhost` works
+- Cookie `sameSite` is `lax`
+- CORS allows credentials from `FRONTEND_URL`
+- Prisma migrations run automatically on Docker container start
 
 ## Production
 
-- Cookie `secure` must be `true`.
-- Cookie `sameSite` is `none` for cross-site frontend/backend deployments.
-- Serve the backend over HTTPS.
-- Frontend requests must continue using `credentials: 'include'`.
-
-If needed, the redirect target can be overridden with `FRONTEND_URL`. If it is not set, the backend redirects to `http://localhost:3000`.
-
-## Database
-
-Schema is defined in `prisma/schema.prisma`.
-
-- `User`: Google OAuth profile plus hashed refresh token
-- `Card`: card content and sharing metadata
-- `Media`: uploaded file references
+- Cookie `secure` must be `true`
+- Cookie `sameSite` is `none` for cross-site deployments
+- Backend must be served over HTTPS
+- Set `FRONTEND_URL` to the production frontend URL
