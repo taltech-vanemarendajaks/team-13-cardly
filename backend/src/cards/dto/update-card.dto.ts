@@ -1,37 +1,4 @@
-import {
-  IsOptional,
-  IsString,
-  IsBoolean,
-  IsDateString,
-  IsObject,
-} from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateCardDto } from './create-card.dto';
 
-export class UpdateCardDto {
-  @IsOptional()
-  @IsString()
-  title?: string;
-
-  @IsOptional()
-  @IsString()
-  template?: string;
-
-  @IsOptional()
-  @IsObject()
-  content?: any;
-
-  @IsOptional()
-  @IsString()
-  thumbnailUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  password?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isPublic?: boolean;
-
-  @IsOptional()
-  @IsDateString()
-  scheduledAt?: string;
-}
+export class UpdateCardDto extends PartialType(CreateCardDto) {}

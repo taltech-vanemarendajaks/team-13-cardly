@@ -9,9 +9,9 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { CardsService } from '../cards/service/cards.service';
-import { CreateCardDto } from '../cards/dto/create-card.dto';
-import { UpdateCardDto } from '../cards/dto/update-card.dto';
+import { CardsService } from './service/cards.service';
+import { CreateCardDto } from './dto/create-card.dto';
+import { UpdateCardDto } from './dto/update-card.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('cards')
