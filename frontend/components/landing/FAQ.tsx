@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, MessageCircle } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollReveal } from "./ScrollReveal";
 import { cn } from "@/lib/utils";
@@ -115,29 +114,6 @@ export function FAQ() {
           ))}
         </div>
 
-        {/* Still have questions */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.5, duration: 0.4 }}
-          className="mt-10"
-        >
-          <Card className="border-slate-200 p-6 text-center dark:border-white/[0.10] sm:p-8">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-500/10">
-              <MessageCircle className="h-6 w-6 text-teal-600 dark:text-teal-400" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              Still have questions?
-            </h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              We&apos;d love to help you out.
-            </p>
-            <Button variant="outline" className="mt-4" asChild>
-              <a href="mailto:hello@cardly.app">Contact support</a>
-            </Button>
-          </Card>
-        </motion.div>
       </div>
     </section>
   );
