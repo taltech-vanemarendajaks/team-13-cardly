@@ -21,26 +21,26 @@ export class CardsController {
 
   @Post()
   create(@Req() req, @Body() dto: CreateCardDto) {
-    return this.cardsService.create(req.user.id, dto);
+    return this.cardsService.create(req.userId, dto);
   }
 
   @Get()
   findAll(@Req() req) {
-    return this.cardsService.findAll(req.user.id);
+    return this.cardsService.findAll(req.userId);
   }
 
   @Get(':id')
   findOne(@Req() req, @Param('id') id: string) {
-    return this.cardsService.findOne(req.user.id, id);
+    return this.cardsService.findOne(req.userId, id);
   }
 
   @Patch(':id')
   update(@Req() req, @Param('id') id: string, @Body() dto: UpdateCardDto) {
-    return this.cardsService.update(req.user.id, id, dto);
+    return this.cardsService.update(req.userId, id, dto);
   }
 
   @Delete(':id')
   remove(@Req() req, @Param('id') id: string) {
-    return this.cardsService.remove(req.user.id, id);
+    return this.cardsService.remove(req.userId, id);
   }
 }

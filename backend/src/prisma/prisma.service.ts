@@ -1,29 +1,24 @@
-import { INestApplication, Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit {
-  constructor(configService: ConfigService) {
-    const connectionString = configService.get<string>('DATABASE_URL');
-
-    if (!connectionString) {
-      throw new Error('DATABASE_URL must be configured');
-    }
-
-    super({
-      adapter: new PrismaPg({ connectionString }),
-    });
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  constructor(config: ConfigService) {
+    const connectionString = config.get<string>('DATABASE_URL');
+    const adapter = new PrismaPg({ connectionString: connectionString! });
+    super({ adapter });
   }
 
   async onModuleInit() {
     await this.$connect();
   }
 
-  async enableShutdownHooks(app: INestApplication) {
-    process.on('beforeExit', async () => {
-      await app.close();
-    });
+  async onModuleDestroy() {
+    await this.$disconnect();
   }
 }

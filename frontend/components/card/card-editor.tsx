@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { AppHeader } from "@/components/landing/AppHeader";
 
 type EditorMode = "create" | "edit";
 
@@ -251,14 +253,24 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
         : "Card save simulated successfully (demo mode, API unavailable).";
     setStatusMessage(`${details} Redirecting to dashboard...`);
     window.setTimeout(() => {
-      router.push("/dashboard?saved=1");
+      router.push("/cards?saved=1");
     }, 850);
     setSaving(false);
   };
 
   if (step === "template") {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-8">
+      <>
+      <AppHeader />
+      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-8 pt-24">
+        <button
+          type="button"
+          onClick={() => router.push("/cards")}
+          className="flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to cards
+        </button>
         <h1 className="text-3xl font-semibold">Select a template</h1>
         <p className="text-muted-foreground">Choose a default or start from blank.</p>
         <div className="grid gap-4 md:grid-cols-2">
@@ -279,23 +291,27 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
           ))}
         </div>
       </main>
+      </>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 p-6 lg:p-8">
+    <>
+    <AppHeader />
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 p-6 pt-24 lg:p-8 lg:pt-24">
+      <button
+        type="button"
+        onClick={() => router.push("/cards")}
+        className="flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to cards
+      </button>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-3xl font-semibold">
           {mode === "edit" ? "Edit Card" : "Create Card"}
         </h1>
         <div className="flex gap-2">
-          <button
-            type="button"
-            className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-            onClick={() => router.push("/dashboard")}
-          >
-            Back to dashboard
-          </button>
           <button
             type="button"
             className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-60"
@@ -480,5 +496,6 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
         </section>
       </div>
     </main>
+    </>
   );
 }
