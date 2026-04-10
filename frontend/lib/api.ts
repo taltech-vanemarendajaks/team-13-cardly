@@ -30,10 +30,11 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
+    const err = (await res.json().catch(() => ({ message: res.statusText }))) as {
+      message?: string;
       error?: string;
     };
-    const error = new Error(err.error ?? res.statusText);
+    const error = new Error(err.message ?? err.error ?? res.statusText);
     (error as Error & { status: number }).status = res.status;
     throw error;
   }
