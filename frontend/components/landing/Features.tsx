@@ -80,8 +80,8 @@ export function Features() {
         <div className="mt-16 grid gap-5 sm:grid-cols-2">
           {features.map((feature, i) => (
             <ScrollReveal key={feature.title} delay={i * 100}>
-              <div className="group relative rounded-[1.25rem] border border-slate-200 p-px dark:border-white/[0.10]">
-                <GlowingEffect spread={50} blur={24} />
+              <div className="group relative rounded-[1.25rem] border border-slate-200 dark:border-white/[0.10]">
+                <GlowingEffect spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} borderWidth={3} />
                 <div className="relative rounded-[1.2rem] bg-white p-6 dark:bg-[rgba(255,255,255,0.03)]">
                   {/* Icon */}
                   <div
