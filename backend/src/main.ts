@@ -1,29 +1,17 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
-import { AppModule } from './app.module';
-import { PrismaService } from './prisma/prisma.service';
+import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+
+  app.use(cookieParser());
 
   app.enableCors({
-    origin: [frontendUrl],
+    origin: process.env['FRONTEND_URL'] ?? 'http://localhost:3000',
     credentials: true,
   });
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
 
-  const prismaService = app.get(PrismaService);
-  await prismaService.enableShutdownHooks(app);
-
-  await app.listen(process.env.PORT ? Number(process.env.PORT) : 3001);
+  await app.listen(3001);
 }
 bootstrap();

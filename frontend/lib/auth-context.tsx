@@ -1,0 +1,63 @@
+"use client";
+
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { apiFetch } from "./api";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+}
+
+interface AuthContextValue {
+  user: AuthUser | null;
+  loading: boolean;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue>({
+  user: null,
+  loading: true,
+  logout: async () => {},
+  refresh: async () => {}
+});
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = async () => {
+    try {
+      const me = await apiFetch<AuthUser>("/auth/me");
+      setUser(me);
+    } catch (err) {
+      const status = (err as Error & { status?: number }).status;
+      if (status === 401 || status === undefined) {
+        setUser(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    await apiFetch("/auth/logout", { method: "POST" }).catch(() => {});
+    setUser(null);
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, loading, logout, refresh }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
