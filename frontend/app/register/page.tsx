@@ -8,7 +8,7 @@ import { useGoogleLogin } from "@react-oauth/google";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const { refresh } = useAuth();
   const [email, setEmail] = useState("");
@@ -21,14 +21,14 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await apiFetch("/auth/login", {
+      await apiFetch("/auth/register", {
         method: "POST",
         body: { email, password }
       });
       await refresh();
       router.push("/cards");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid credentials");
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -96,19 +96,19 @@ export default function LoginPage() {
         </Link>
 
         <h1 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">
-          Welcome back
+          Create your account
         </h1>
         <p className="mb-8 text-sm text-slate-500 dark:text-slate-400">
-          No account?{" "}
+          Already have one?{" "}
           <Link
-            href="/register"
+            href="/login"
             className="font-medium text-teal-700 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300"
           >
-            Start for free
+            Sign in
           </Link>
         </p>
 
-        {/* Google sign-in */}
+        {/* Google sign-up */}
         <button
           type="button"
           onClick={() => googleLogin()}
@@ -133,7 +133,7 @@ export default function LoginPage() {
               fill="#EA4335"
             />
           </svg>
-          Sign in with Google
+          Sign up with Google
         </button>
 
         {/* Divider */}
@@ -170,24 +170,16 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Password
-              </label>
-              <Link
-                href="/forgot-password"
-                className="text-xs font-medium text-teal-700 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Password
+            </label>
             <input
               type="password"
               required
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Min. 8 characters"
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-white/[0.10] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-500"
             />
           </div>
@@ -203,8 +195,19 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_12px_-2px_rgba(20,184,166,0.3)] transition-all hover:scale-[1.01] hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.99] disabled:opacity-60 disabled:hover:scale-100"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Creating account..." : "Start free trial"}
           </button>
+
+          <p className="text-center text-xs text-slate-400 dark:text-slate-500">
+            No credit card required. By signing up you agree to our{" "}
+            <Link
+              href="/terms"
+              className="text-slate-500 underline hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+            >
+              terms
+            </Link>
+            .
+          </p>
         </form>
       </div>
     </div>
