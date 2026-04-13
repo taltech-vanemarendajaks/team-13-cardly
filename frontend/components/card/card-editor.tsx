@@ -87,7 +87,7 @@ function getDefaultElements() {
 
 async function saveCardRequest(draft: CardDraft, cardId?: string) {
   const endpoint = cardId ? `/cards/${cardId}` : "/cards";
-  const method = cardId ? "PUT" : "POST";
+  const method = cardId ? "PATCH" : "POST";
   const body = {
     title: draft.title,
     template: draft.templateId,
@@ -101,6 +101,7 @@ async function saveCardRequest(draft: CardDraft, cardId?: string) {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method,
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(body)
     });
 
