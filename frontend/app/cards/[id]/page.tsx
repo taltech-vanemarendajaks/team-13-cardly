@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 type CardElement = {
   id?: string;
@@ -29,6 +29,17 @@ type PublicStatusResponse = {
   available: boolean;
 };
 
+type FireworkParticle = {
+  id: string;
+  left: string;
+  top: string;
+  dx: string;
+  dy: string;
+  delay: string;
+  duration: string;
+  color: string;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 type PublicCardPageProps = {
@@ -49,6 +60,41 @@ function formatCountdown(ms: number): string {
     .padStart(2, "0")}m ${seconds.toString().padStart(2, "0")}s`;
 }
 
+function extractHexColors(input: string): string[] {
+  const matches = input.match(/#(?:[0-9a-fA-F]{3}){1,2}/g);
+  return matches ?? [];
+}
+
+function getThemeColors(background?: string, hasImage?: boolean): string[] {
+  const greenPalette = [
+    "#14532d",
+    "#166534",
+    "#15803d",
+    "#16a34a",
+    "#22c55e",
+    "#4ade80",
+    "#86efac",
+    "#bbf7d0"
+  ];
+
+  if (hasImage) {
+    return greenPalette;
+  }
+
+  const extracted = background ? extractHexColors(background) : [];
+  const greenExtracted = extracted.filter((color) => {
+    const hex = color.replace("#", "");
+    const normalized = hex.length === 3 ? hex.split("").map((ch) => ch + ch).join("") : hex;
+    const r = parseInt(normalized.slice(0, 2), 16);
+    const g = parseInt(normalized.slice(2, 4), 16);
+    const b = parseInt(normalized.slice(4, 6), 16);
+    return Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b) && g >= r && g >= b;
+  });
+
+  if (greenExtracted.length >= 3) return [...greenExtracted, ...greenPalette];
+  return greenPalette;
+}
+
 export default function PublicCardPage({ params }: PublicCardPageProps) {
   const [cardId, setCardId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -56,6 +102,9 @@ export default function PublicCardPage({ params }: PublicCardPageProps) {
   const [card, setCard] = useState<CardResponse | null>(null);
   const [error, setError] = useState<string>("");
   const [now, setNow] = useState(Date.now());
+  const [showRevealEffect, setShowRevealEffect] = useState(false);
+  const [particles, setParticles] = useState<FireworkParticle[]>([]);
+  const hadCountdownRef = useRef(false);
 
   useEffect(() => {
     params.then(({ id }) => setCardId(id));
@@ -87,6 +136,10 @@ export default function PublicCardPage({ params }: PublicCardPageProps) {
     const publicStatus = (await statusRes.json()) as PublicStatusResponse;
     setStatus(publicStatus);
 
+    if (!publicStatus.available && publicStatus.scheduledAt) {
+      hadCountdownRef.current = true;
+    }
+
     if (!publicStatus.available || publicStatus.requiresPassword) {
       setCard(null);
       setLoading(false);
@@ -104,9 +157,53 @@ export default function PublicCardPage({ params }: PublicCardPageProps) {
       return;
     }
 
-    setCard((await cardRes.json()) as CardResponse);
+    const cardData = (await cardRes.json()) as CardResponse;
+    setCard(cardData);
+
+    if (hadCountdownRef.current) {
+      const content = cardData.content ?? {};
+      const colors = getThemeColors(content.background, Boolean(content.backgroundImageUrl));
+      const burstCenters = [
+        { x: 50, y: 50 },
+        { x: 30, y: 36 },
+        { x: 70, y: 34 },
+        { x: 24, y: 64 },
+        { x: 76, y: 66 }
+      ];
+      const particlesPerBurst = 24;
+      const nextParticles = burstCenters.flatMap((center, burstIndex) =>
+        Array.from({ length: particlesPerBurst }, (_, index) => {
+          const angle = (Math.PI * 2 * index) / particlesPerBurst + Math.random() * 0.3;
+          const distance = 90 + Math.random() * 170;
+          return {
+            id: `p-${burstIndex}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+            left: `${center.x + (Math.random() * 6 - 3)}%`,
+            top: `${center.y + (Math.random() * 6 - 3)}%`,
+            dx: `${Math.cos(angle) * distance}px`,
+            dy: `${Math.sin(angle) * distance}px`,
+            delay: `${burstIndex * 0.08 + Math.random() * 0.22}s`,
+            duration: `${1 + Math.random() * 0.9}s`,
+            color: colors[(burstIndex * particlesPerBurst + index) % colors.length]
+          };
+        })
+      );
+
+      setParticles(nextParticles);
+      setShowRevealEffect(true);
+      hadCountdownRef.current = false;
+    }
+
     setLoading(false);
   }, [cardId]);
+
+  useEffect(() => {
+    if (!showRevealEffect) return;
+    const timer = window.setTimeout(() => {
+      setShowRevealEffect(false);
+      setParticles([]);
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [showRevealEffect]);
 
   useEffect(() => {
     loadPublicState().catch(() => {
@@ -152,11 +249,10 @@ export default function PublicCardPage({ params }: PublicCardPageProps) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
         <div className="rounded-lg border border-slate-200 bg-white p-6 text-center">
-          <h1 className="text-xl font-semibold text-slate-900">Card unlocks soon</h1>
           <p className="mt-2 text-sm text-slate-500">
             Reveals at {new Date(status.scheduledAt).toLocaleString()}
           </p>
-          <p className="mt-4 text-2xl font-semibold text-teal-600">{formatCountdown(remainingMs)}</p>
+          <p className="mt-2 text-4xl font-bold text-teal-600">{formatCountdown(remainingMs)}</p>
         </div>
       </main>
     );
@@ -201,6 +297,26 @@ export default function PublicCardPage({ params }: PublicCardPageProps) {
               backgroundRepeat: backgroundImageUrl ? "no-repeat" : undefined
             }}
           >
+            {showRevealEffect ? (
+              <>
+                <div className="reveal-flash-overlay" />
+                {particles.map((particle) => (
+                  <span
+                    key={particle.id}
+                    className="firework-particle"
+                    style={{
+                      left: particle.left,
+                      top: particle.top,
+                      "--dx": particle.dx,
+                      "--dy": particle.dy,
+                      "--firework-delay": particle.delay,
+                      "--firework-duration": particle.duration,
+                      backgroundColor: particle.color
+                    } as CSSProperties}
+                  />
+                ))}
+              </>
+            ) : null}
             {elements.map((element, index) => (
               <div
                 key={element.id ?? `element-${index}`}
