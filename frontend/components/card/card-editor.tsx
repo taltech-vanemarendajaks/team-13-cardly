@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AppHeader } from "@/components/landing/AppHeader";
+import { apiFetch } from "@/lib/api";
 
 type EditorMode = "create" | "edit";
 
@@ -39,9 +40,18 @@ type CardEditorProps = {
   initialDraft?: CardDraft;
 };
 
+type CardApiResponse = {
+  id: string;
+  title: string;
+  template: string | null;
+  content?: {
+    background?: string;
+    elements?: unknown[];
+  };
+};
+
 const PREVIEW_WIDTH = 600;
 const PREVIEW_HEIGHT = 400;
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const FONT_OPTIONS = ["Georgia", "Arial", "Tahoma", "Verdana", "Times New Roman"];
 
 const templates: Template[] = [
@@ -85,6 +95,31 @@ function getDefaultElements() {
   ];
 }
 
+function normalizeElements(elements: unknown): TextElement[] {
+  if (!Array.isArray(elements) || elements.length === 0) {
+    return getDefaultElements();
+  }
+
+  const parsed = elements
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const source = item as Partial<TextElement>;
+
+      return {
+        id: typeof source.id === "string" && source.id.length > 0 ? source.id : crypto.randomUUID(),
+        content: typeof source.content === "string" ? source.content : "",
+        fontFamily: typeof source.fontFamily === "string" ? source.fontFamily : "Arial",
+        fontSize: typeof source.fontSize === "number" ? source.fontSize : 24,
+        color: typeof source.color === "string" ? source.color : "#111827",
+        x: typeof source.x === "number" ? source.x : 40,
+        y: typeof source.y === "number" ? source.y : 40
+      };
+    })
+    .filter((value): value is TextElement => value !== null);
+
+  return parsed.length > 0 ? parsed : getDefaultElements();
+}
+
 async function saveCardRequest(draft: CardDraft, cardId?: string) {
   const endpoint = cardId ? `/cards/${cardId}` : "/cards";
   const method = cardId ? "PATCH" : "POST";
@@ -97,29 +132,14 @@ async function saveCardRequest(draft: CardDraft, cardId?: string) {
     }
   };
 
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(body)
-    });
+  const data = await apiFetch<{ id?: string }>(endpoint, {
+    method,
+    body
+  });
 
-    if (!response.ok) {
-      throw new Error(`Save failed with status ${response.status}`);
-    }
-
-    const data = await response.json();
-    return {
-      id: data?.id ?? cardId ?? crypto.randomUUID(),
-      source: "api" as const
-    };
-  } catch {
-    return {
-      id: cardId ?? crypto.randomUUID(),
-      source: "mock" as const
-    };
-  }
+  return {
+    id: data?.id ?? cardId ?? crypto.randomUUID()
+  };
 }
 
 export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
@@ -145,11 +165,52 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState<string>("");
+  const [loadingCard, setLoadingCard] = useState(mode === "edit");
+  const [loadingError, setLoadingError] = useState<string>("");
 
   const selectedElement = useMemo(
     () => draft.elements.find((element) => element.id === selectedElementId),
     [draft.elements, selectedElementId]
   );
+
+  useEffect(() => {
+    if (mode !== "edit" || !cardId) {
+      setLoadingCard(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    setLoadingCard(true);
+    setLoadingError("");
+
+    apiFetch<CardApiResponse>(`/cards/${cardId}`)
+      .then((card) => {
+        if (cancelled) return;
+
+        const nextDraft: CardDraft = {
+          id: card.id,
+          title: card.title,
+          templateId: card.template ?? "blank",
+          background: card.content?.background ?? "#ffffff",
+          elements: normalizeElements(card.content?.elements)
+        };
+
+        setDraft(nextDraft);
+        setSelectedElementId(nextDraft.elements[0]?.id ?? "");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setLoadingError((error as Error).message || "Failed to load card.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCard(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, cardId]);
 
   useEffect(() => {
     if (step !== "editor") return;
@@ -247,17 +308,49 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
   const onSave = async () => {
     setSaving(true);
     setStatusMessage("");
-    const result = await saveCardRequest(draft, cardId);
-    const details =
-      result.source === "api"
-        ? `Card saved successfully (${mode === "edit" ? "updated" : "created"} via API).`
-        : "Card save simulated successfully (demo mode, API unavailable).";
-    setStatusMessage(`${details} Redirecting to dashboard...`);
-    window.setTimeout(() => {
-      router.push("/cards?saved=1");
-    }, 850);
-    setSaving(false);
+    try {
+      await saveCardRequest(draft, cardId);
+      setStatusMessage(
+        `Card saved successfully (${mode === "edit" ? "updated" : "created"}). Redirecting to dashboard...`
+      );
+      window.setTimeout(() => {
+        router.push("/cards?saved=1");
+      }, 850);
+    } catch (error) {
+      setStatusMessage((error as Error).message || "Failed to save card.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loadingCard) {
+    return (
+      <>
+        <AppHeader />
+        <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center p-8 pt-24">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading card...</p>
+        </main>
+      </>
+    );
+  }
+
+  if (loadingError) {
+    return (
+      <>
+        <AppHeader />
+        <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center gap-4 p-8 pt-24">
+          <p className="text-sm text-destructive">{loadingError}</p>
+          <button
+            type="button"
+            onClick={() => router.push("/cards")}
+            className="rounded-md border px-3 py-2 text-sm hover:bg-accent"
+          >
+            Back to cards
+          </button>
+        </main>
+      </>
+    );
+  }
 
   if (step === "template") {
     return (
@@ -283,9 +376,10 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
               onClick={() => onTemplatePick(template)}
             >
               <div
-                className="mb-3 h-32 w-full rounded-md border"
+                className="mb-3 flex h-32 w-full items-center justify-center rounded-md border"
                 style={{ background: template.background }}
-              />
+              >
+              </div>
               <h2 className="text-lg font-medium">{template.name}</h2>
               <p className="text-sm text-muted-foreground">{template.description}</p>
             </button>
