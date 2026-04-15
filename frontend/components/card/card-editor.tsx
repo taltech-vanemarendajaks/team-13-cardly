@@ -39,6 +39,7 @@ type CardDraft = {
   templateId: string;
   background: string;
   backgroundImageUrl?: string;
+  scheduledAt?: string | null;
   elements: TextElement[];
 };
 
@@ -52,6 +53,7 @@ type CardApiResponse = {
   id: string;
   title: string;
   template: string | null;
+  scheduledAt?: string | null;
   content?: {
     background?: string;
     backgroundImageUrl?: string;
@@ -144,6 +146,21 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function toLocalDatetimeInput(iso?: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function toIsoFromLocalInput(localValue: string): string | null {
+  if (!localValue) return null;
+  const date = new Date(localValue);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
 async function saveCardRequest(draft: CardDraft, cardId?: string) {
   const endpoint = cardId ? `/cards/${cardId}` : "/cards";
   const method = cardId ? "PATCH" : "POST";
@@ -154,7 +171,8 @@ async function saveCardRequest(draft: CardDraft, cardId?: string) {
       background: draft.background,
       backgroundImageUrl: draft.backgroundImageUrl ?? null,
       elements: draft.elements
-    }
+    },
+    scheduledAt: draft.scheduledAt ?? null
   };
 
   const data = await apiFetch<{ id?: string }>(endpoint, {
@@ -179,6 +197,7 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
       templateId: "blank",
       background: "#ffffff",
       backgroundImageUrl: undefined,
+      scheduledAt: null,
       elements: getDefaultElements()
     }
   );
@@ -220,6 +239,7 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
           templateId: card.template ?? "blank",
           background: card.content?.background ?? "#ffffff",
           backgroundImageUrl: card.content?.backgroundImageUrl,
+          scheduledAt: card.scheduledAt ?? null,
           elements: normalizeElements(card.content?.elements)
         };
 
@@ -500,6 +520,36 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
                   Upload a photo to use it as card background.
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <label className="block text-sm font-medium">Reveal time (countdown)</label>
+              <Input
+                type="datetime-local"
+                dir="ltr"
+                className="datetime-input-right pr-10"
+                value={toLocalDatetimeInput(draft.scheduledAt)}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    scheduledAt: toIsoFromLocalInput(event.target.value)
+                  }))
+                }
+              />
+              <div>
+                <button
+                  type="button"
+                  className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      scheduledAt: null
+                    }))
+                  }
+                >
+                  Clear schedule
+                </button>
+              </div>
             </div>
 
             <div>

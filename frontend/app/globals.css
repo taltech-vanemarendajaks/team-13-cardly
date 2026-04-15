@@ -58,6 +58,19 @@
 }
 
 @layer utilities {
+  .datetime-input-right {
+    position: relative;
+  }
+
+  .datetime-input-right::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+    cursor: pointer;
+  }
+
   .text-gradient-hero {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(to bottom, #0f172a, #475569);

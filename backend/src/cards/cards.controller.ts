@@ -19,6 +19,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class CardsController {
   constructor(private readonly cardsService: CardsService) {}
 
+  @Get(':id/public-status')
+  getPublicStatus(@Param('id') id: string) {
+    return this.cardsService.getPublicStatus(id);
+  }
+
   @Get(':id/public')
   findPublic(@Param('id') id: string) {
     return this.cardsService.findPublic(id);

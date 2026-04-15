@@ -81,6 +81,27 @@ export class CardsService {
     return result;
   }
 
+  async getPublicStatus(id: string) {
+    const card = await this.prisma.card.findUnique({
+      where: { id },
+    });
+
+    if (!card || !card.isPublic) {
+      throw new NotFoundException('Card not found');
+    }
+
+    const scheduledAt = card.scheduledAt ? card.scheduledAt.toISOString() : null;
+    const available = !card.scheduledAt || card.scheduledAt.getTime() <= Date.now();
+
+    return {
+      id: card.id,
+      isPublic: card.isPublic,
+      scheduledAt,
+      requiresPassword: !!card.password,
+      available,
+    };
+  }
+
   async verifyPassword(id: string, password: string) {
     const card = await this.prisma.card.findUnique({
       where: { id },
