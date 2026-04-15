@@ -19,6 +19,11 @@ interface Card {
   updatedAt: string;
 }
 
+type CardContent = {
+  background?: string;
+  backgroundImageUrl?: string;
+};
+
 interface ShareLinkResponse {
   url: string;
 }
@@ -50,6 +55,11 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+function getCardContent(content: unknown): CardContent {
+  if (!content || typeof content !== "object") return {};
+  return content as CardContent;
 }
 
 export default function CardsPage() {
@@ -150,12 +160,30 @@ export default function CardsPage() {
                   className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:shadow-md dark:border-white/[0.10] dark:bg-white/[0.03]"
                 >
                   {/* Card preview / gradient thumbnail */}
+                  {(() => {
+                    const content = getCardContent(card.content);
+                    const hasCustomImage = Boolean(content.backgroundImageUrl);
+                    const fallbackGradient = gradients[i % gradients.length];
+                    return (
                   <div
-                    className={`relative flex h-40 items-center justify-center bg-gradient-to-br ${gradients[i % gradients.length]}`}
+                    className={`relative flex h-40 items-center justify-center ${
+                      hasCustomImage ? "bg-slate-100" : `bg-gradient-to-br ${fallbackGradient}`
+                    }`}
+                    style={{
+                      background: !hasCustomImage ? content.background : undefined,
+                      backgroundImage: content.backgroundImageUrl
+                        ? `url(${content.backgroundImageUrl})`
+                        : undefined,
+                      backgroundSize: content.backgroundImageUrl ? "cover" : undefined,
+                      backgroundPosition: content.backgroundImageUrl ? "center" : undefined,
+                      backgroundRepeat: content.backgroundImageUrl ? "no-repeat" : undefined
+                    }}
                   >
-                    <p className="text-lg font-semibold text-slate-700/60 dark:text-white/40">
-                      {card.template ?? "Custom"}
-                    </p>
+                    {!hasCustomImage ? (
+                      <p className="text-lg font-semibold text-slate-700/60 dark:text-white/40">
+                        {card.template ?? "Custom"}
+                      </p>
+                    ) : null}
                     {/* Hover overlay */}
                     <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
                       <Link href={`/editor/${card.id}`}>
@@ -179,6 +207,8 @@ export default function CardsPage() {
                       </Link>
                     </div>
                   </div>
+                    );
+                  })()}
 
                   {/* Card info */}
                   <div className="p-4">
