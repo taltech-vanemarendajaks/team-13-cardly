@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, ExternalLink, Link2, QrCode, Code2 } from "lucide-react";
 import { AppHeader } from "@/components/landing/AppHeader";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
@@ -17,6 +17,20 @@ interface Card {
   scheduledAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+interface ShareLinkResponse {
+  url: string;
+}
+
+interface EmbedResponse {
+  url: string;
+  code: string;
+}
+
+interface QrResponse {
+  url: string;
+  qrImageUrl: string;
 }
 
 const gradients = [
@@ -41,6 +55,8 @@ function timeAgo(dateStr: string): string {
 export default function CardsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusByCardId, setStatusByCardId] = useState<Record<string, string>>({});
+  const [qrByCardId, setQrByCardId] = useState<Record<string, QrResponse>>({});
 
   useEffect(() => {
     apiFetch<Card[]>("/cards")
@@ -52,6 +68,52 @@ export default function CardsPage() {
   async function deleteCard(id: string) {
     await apiFetch(`/cards/${id}`, { method: "DELETE" });
     setCards((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  async function copyToClipboard(cardId: string, text: string, successMessage: string) {
+    if (!navigator?.clipboard) {
+      setStatusByCardId((prev) => ({ ...prev, [cardId]: "Clipboard unavailable" }));
+      return;
+    }
+
+    await navigator.clipboard.writeText(text);
+    setStatusByCardId((prev) => ({ ...prev, [cardId]: successMessage }));
+  }
+
+  async function copyShareLink(card: Card) {
+    try {
+      const result = await apiFetch<ShareLinkResponse>(`/cards/${card.id}/share-link`);
+      await copyToClipboard(card.id, result.url, "Link copied");
+    } catch {
+      setStatusByCardId((prev) => ({ ...prev, [card.id]: "Failed to copy link" }));
+    }
+  }
+
+  async function copyEmbedCode(card: Card) {
+    try {
+      const result = await apiFetch<EmbedResponse>(`/cards/${card.id}/embed`);
+      await copyToClipboard(card.id, result.code, "Embed code copied");
+    } catch {
+      setStatusByCardId((prev) => ({ ...prev, [card.id]: "Failed to copy embed code" }));
+    }
+  }
+
+  async function openQr(card: Card) {
+    try {
+      if (qrByCardId[card.id]) {
+        setQrByCardId((prev) => {
+          const next = { ...prev };
+          delete next[card.id];
+          return next;
+        });
+        return;
+      }
+
+      const result = await apiFetch<QrResponse>(`/cards/${card.id}/qr`);
+      setQrByCardId((prev) => ({ ...prev, [card.id]: result }));
+    } catch {
+      setStatusByCardId((prev) => ({ ...prev, [card.id]: "Failed to load QR" }));
+    }
   }
 
   return (
@@ -105,35 +167,83 @@ export default function CardsPage() {
                           Edit
                         </Button>
                       </Link>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="gap-1.5 text-white hover:bg-white/20 hover:text-white"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        View
-                      </Button>
+                      <Link href={`/cards/${card.id}`}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1.5 text-white hover:bg-white/20 hover:text-white"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          View
+                        </Button>
+                      </Link>
                     </div>
                   </div>
 
                   {/* Card info */}
-                  <div className="flex items-center justify-between p-4">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                        {card.title}
-                      </h2>
-                      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
-                        Updated {timeAgo(card.updatedAt)}
-                      </p>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <h2 className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          {card.title}
+                        </h2>
+                        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                          Updated {timeAgo(card.updatedAt)}
+                        </p>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-500"
+                        onClick={() => deleteCard(card.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-500"
-                      onClick={() => deleteCard(card.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => copyShareLink(card)}>
+                        <Link2 className="h-3.5 w-3.5" />
+                        Link
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openQr(card)}>
+                        <QrCode className="h-3.5 w-3.5" />
+                        {qrByCardId[card.id] ? "Hide QR" : "QR"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => copyEmbedCode(card)}>
+                        <Code2 className="h-3.5 w-3.5" />
+                        Embed
+                      </Button>
+                    </div>
+                    {qrByCardId[card.id] ? (
+                      <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={qrByCardId[card.id].qrImageUrl}
+                            alt={`QR code for ${card.title}`}
+                            className="h-24 w-24 rounded-md border border-slate-200 bg-white p-1"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              window.open(
+                                qrByCardId[card.id].qrImageUrl,
+                                "_blank",
+                                "noopener,noreferrer"
+                              )
+                            }
+                          >
+                            Open image
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {statusByCardId[card.id] ? (
+                      <p className="mt-2 text-xs text-teal-600 dark:text-teal-400">
+                        {statusByCardId[card.id]}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ))}
