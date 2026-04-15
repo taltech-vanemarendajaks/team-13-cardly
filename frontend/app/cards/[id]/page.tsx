@@ -15,6 +15,7 @@ type CardResponse = {
   title: string;
   content?: {
     background?: string;
+    backgroundImageUrl?: string;
     elements?: CardElement[];
   };
 };
@@ -53,6 +54,7 @@ export default async function PublicCardPage({ params }: PublicCardPageProps) {
   const card = (await response.json()) as CardResponse;
   const elements = card.content?.elements ?? [];
   const background = card.content?.background ?? "#ffffff";
+  const backgroundImageUrl = card.content?.backgroundImageUrl;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
@@ -60,7 +62,13 @@ export default async function PublicCardPage({ params }: PublicCardPageProps) {
         <div className="overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div
             className="relative mx-auto h-[400px] w-[600px] overflow-hidden rounded-lg border border-slate-200"
-            style={{ background }}
+            style={{
+              background,
+              backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : undefined,
+              backgroundSize: backgroundImageUrl ? "cover" : undefined,
+              backgroundPosition: backgroundImageUrl ? "center" : undefined,
+              backgroundRepeat: backgroundImageUrl ? "no-repeat" : undefined
+            }}
           >
             {elements.map((element, index) => (
               <div
