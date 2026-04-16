@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type MouseEvent as ReactMouseEvent
+} from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -31,6 +38,8 @@ type CardDraft = {
   title: string;
   templateId: string;
   background: string;
+  backgroundImageUrl?: string;
+  scheduledAt?: string | null;
   elements: TextElement[];
 };
 
@@ -44,8 +53,10 @@ type CardApiResponse = {
   id: string;
   title: string;
   template: string | null;
+  scheduledAt?: string | null;
   content?: {
     background?: string;
+    backgroundImageUrl?: string;
     elements?: unknown[];
   };
 };
@@ -120,6 +131,36 @@ function normalizeElements(elements: unknown): TextElement[] {
   return parsed.length > 0 ? parsed : getDefaultElements();
 }
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to read selected file."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read selected file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function toLocalDatetimeInput(iso?: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function toIsoFromLocalInput(localValue: string): string | null {
+  if (!localValue) return null;
+  const date = new Date(localValue);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
 async function saveCardRequest(draft: CardDraft, cardId?: string) {
   const endpoint = cardId ? `/cards/${cardId}` : "/cards";
   const method = cardId ? "PATCH" : "POST";
@@ -128,8 +169,10 @@ async function saveCardRequest(draft: CardDraft, cardId?: string) {
     template: draft.templateId,
     content: {
       background: draft.background,
+      backgroundImageUrl: draft.backgroundImageUrl ?? null,
       elements: draft.elements
-    }
+    },
+    scheduledAt: draft.scheduledAt ?? null
   };
 
   const data = await apiFetch<{ id?: string }>(endpoint, {
@@ -153,6 +196,8 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
       title: "Untitled card",
       templateId: "blank",
       background: "#ffffff",
+      backgroundImageUrl: undefined,
+      scheduledAt: null,
       elements: getDefaultElements()
     }
   );
@@ -193,6 +238,8 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
           title: card.title,
           templateId: card.template ?? "blank",
           background: card.content?.background ?? "#ffffff",
+          backgroundImageUrl: card.content?.backgroundImageUrl,
+          scheduledAt: card.scheduledAt ?? null,
           elements: normalizeElements(card.content?.elements)
         };
 
@@ -291,9 +338,29 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
     setDraft((currentDraft) => ({
       ...currentDraft,
       templateId: template.id,
-      background: template.background
+      background: template.background,
+      backgroundImageUrl: undefined
     }));
     setStep("editor");
+  };
+
+  const onBackgroundImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const imageDataUrl = await readFileAsDataUrl(file);
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        backgroundImageUrl: imageDataUrl
+      }));
+      setStatusMessage("Custom picture applied.");
+    } catch (error) {
+      setStatusMessage((error as Error).message || "Failed to load selected image.");
+    } finally {
+      input.value = "";
+    }
   };
 
   const onElementMouseDown = (event: ReactMouseEvent, element: TextElement) => {
@@ -432,6 +499,59 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
               />
             </div>
 
+            <div className="space-y-2 rounded-md border p-3">
+              <label className="block text-sm font-medium">Custom picture</label>
+              <Input type="file" accept="image/*" onChange={onBackgroundImageChange} />
+              {draft.backgroundImageUrl ? (
+                <button
+                  type="button"
+                  className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      backgroundImageUrl: undefined
+                    }))
+                  }
+                >
+                  Remove custom picture
+                </button>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Upload a photo to use it as card background.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <label className="block text-sm font-medium">Reveal time (countdown)</label>
+              <Input
+                type="datetime-local"
+                dir="ltr"
+                className="datetime-input-right pr-10"
+                value={toLocalDatetimeInput(draft.scheduledAt)}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    scheduledAt: toIsoFromLocalInput(event.target.value)
+                  }))
+                }
+              />
+              <div>
+                <button
+                  type="button"
+                  className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      scheduledAt: null
+                    }))
+                  }
+                >
+                  Clear schedule
+                </button>
+              </div>
+            </div>
+
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <label className="block text-sm font-medium">Text elements</label>
@@ -561,7 +681,11 @@ export function CardEditor({ mode, cardId, initialDraft }: CardEditorProps) {
               style={{
                 width: PREVIEW_WIDTH,
                 height: PREVIEW_HEIGHT,
-                background: draft.background
+                background: draft.background,
+                backgroundImage: draft.backgroundImageUrl ? `url(${draft.backgroundImageUrl})` : undefined,
+                backgroundSize: draft.backgroundImageUrl ? "cover" : undefined,
+                backgroundPosition: draft.backgroundImageUrl ? "center" : undefined,
+                backgroundRepeat: draft.backgroundImageUrl ? "no-repeat" : undefined
               }}
             >
               {draft.elements.map((element) => (
