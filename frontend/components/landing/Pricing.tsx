@@ -4,6 +4,8 @@ import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollReveal } from "./ScrollReveal";
+import { useAuth } from "@/lib/auth-context";
+import { startCheckout } from "@/lib/billing";
 import Link from "next/link";
 
 interface PricingFeature {
@@ -12,6 +14,7 @@ interface PricingFeature {
 }
 
 interface PricingTier {
+  planKey: "free" | "pro" | "business";
   name: string;
   price: string;
   period: string;
@@ -23,6 +26,7 @@ interface PricingTier {
 
 const tiers: PricingTier[] = [
   {
+    planKey: "free",
     name: "Free",
     price: "$0",
     period: "/month",
@@ -40,6 +44,7 @@ const tiers: PricingTier[] = [
     ]
   },
   {
+    planKey: "pro",
     name: "Pro",
     price: "$9",
     period: "/month",
@@ -58,6 +63,7 @@ const tiers: PricingTier[] = [
     ]
   },
   {
+    planKey: "business",
     name: "Business",
     price: "$19",
     period: "/month",
@@ -77,11 +83,29 @@ const tiers: PricingTier[] = [
 ];
 
 export function Pricing() {
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
+  const currentPlan = user?.plan ?? "free";
+
+  const handleCTA = (tier: PricingTier) => {
+    if (tier.planKey === "free") return;
+    void startCheckout(tier.planKey);
+  };
+
+  const getButtonLabel = (tier: PricingTier) => {
+    if (!isLoggedIn) return tier.cta;
+    if (tier.planKey === currentPlan) return "Current Plan";
+    if (tier.planKey === "free") return "Current Plan";
+    return tier.cta;
+  };
+
+  const isCurrentPlan = (tier: PricingTier) => {
+    if (!isLoggedIn) return false;
+    return tier.planKey === currentPlan;
+  };
+
   return (
-    <section
-      id="pricing"
-      className="relative scroll-mt-20 px-6 py-24 sm:py-32"
-    >
+    <section id="pricing" className="relative scroll-mt-20 px-6 py-24 sm:py-32">
       {/* Dot grid background */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.4] dark:opacity-[0.15]"
@@ -103,7 +127,8 @@ export function Pricing() {
               Simple, transparent pricing
             </h2>
             <p className="mt-4 text-base leading-relaxed text-slate-500 dark:text-slate-400">
-              Start for free. Upgrade when you need more.
+              Start for free. Upgrade when you need more. 7-day free trial on
+              all paid plans.
             </p>
           </div>
         </ScrollReveal>
@@ -115,7 +140,7 @@ export function Pricing() {
               <div
                 className={`relative rounded-2xl border bg-white p-6 dark:bg-[#0a0a0a] sm:p-7 ${
                   tier.popular
-                    ? "border-teal-500/40 ring-2 ring-teal-500/20 shadow-[0_4px_24px_-8px_rgba(20,184,166,0.15)]"
+                    ? "border-teal-500/40 shadow-[0_4px_24px_-8px_rgba(20,184,166,0.15)] ring-2 ring-teal-500/20"
                     : "border-slate-200 dark:border-white/[0.10]"
                 }`}
               >
@@ -143,17 +168,39 @@ export function Pricing() {
                 </div>
 
                 {/* CTA */}
-                <Link href="/register" className="block">
-                  {tier.popular ? (
-                    <Button className="w-full bg-teal-600 text-white shadow-[0_0_20px_-4px_rgba(20,184,166,0.4)] transition-transform hover:scale-[1.02] hover:bg-teal-700">
-                      {tier.cta}
-                    </Button>
-                  ) : (
-                    <Button variant="outline" className="w-full">
-                      {tier.cta}
-                    </Button>
-                  )}
-                </Link>
+                {isCurrentPlan(tier) ? (
+                  <Button variant="outline" className="w-full" disabled>
+                    Current Plan
+                  </Button>
+                ) : !isLoggedIn ? (
+                  <Link href="/register" className="block">
+                    {tier.popular ? (
+                      <Button className="w-full bg-teal-600 text-white shadow-[0_0_20px_-4px_rgba(20,184,166,0.4)] transition-transform hover:scale-[1.02] hover:bg-teal-700">
+                        {tier.cta}
+                      </Button>
+                    ) : (
+                      <Button variant="outline" className="w-full">
+                        {tier.cta}
+                      </Button>
+                    )}
+                  </Link>
+                ) : tier.planKey === "free" ? (
+                  <Button variant="outline" className="w-full" disabled>
+                    Free tier
+                  </Button>
+                ) : (
+                  <Button
+                    className={
+                      tier.popular
+                        ? "w-full bg-teal-600 text-white shadow-[0_0_20px_-4px_rgba(20,184,166,0.4)] transition-transform hover:scale-[1.02] hover:bg-teal-700"
+                        : "w-full"
+                    }
+                    variant={tier.popular ? "default" : "outline"}
+                    onClick={() => handleCTA(tier)}
+                  >
+                    {getButtonLabel(tier)}
+                  </Button>
+                )}
 
                 {/* Features */}
                 <ul className="mt-6 space-y-3">
@@ -185,7 +232,8 @@ export function Pricing() {
 
         {/* Footer text */}
         <p className="mt-10 text-center text-sm text-slate-400">
-          Cancel anytime. No contracts. All plans include a 7-day free trial.
+          Cancel anytime. No contracts. All paid plans include a 7-day free
+          trial.
         </p>
       </div>
     </section>

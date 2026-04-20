@@ -139,6 +139,8 @@ export class AuthService {
     avatarUrl: string | null;
     googleId?: string | null;
     passwordHash?: string | null;
+    plan?: string;
+    stripeStatus?: string | null;
   }) {
     return {
       id: user.id,
@@ -147,6 +149,8 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       hasGoogle: !!user.googleId,
       hasPassword: !!user.passwordHash,
+      plan: user.plan ?? 'free',
+      stripeStatus: user.stripeStatus ?? null,
     };
   }
 }
