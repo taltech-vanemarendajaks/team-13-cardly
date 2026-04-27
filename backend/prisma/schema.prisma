@@ -12,6 +12,7 @@ model User {
   name                 String?
   googleId             String?  @unique
   passwordHash         String?
+  refreshTokenHash     String?
   avatarUrl            String?
   plan                 String   @default("free")
   stripeCustomerId     String?  @unique
