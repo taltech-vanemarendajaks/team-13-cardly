@@ -8,6 +8,10 @@ export interface AuthUser {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  hasGoogle?: boolean;
+  hasPassword?: boolean;
+  plan: "free" | "pro" | "business";
+  stripeStatus: string | null;
 }
 
 interface AuthContextValue {
