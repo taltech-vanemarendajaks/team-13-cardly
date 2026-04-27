@@ -1,7 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { apiFetch } from "./api";
+import {
+  apiFetch,
+  clearAccessToken,
+  getAccessToken,
+  refreshAccessToken
+} from "./api";
 
 export interface AuthUser {
   id: string;
@@ -34,11 +39,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = async () => {
     try {
-      const me = await apiFetch<AuthUser>("/auth/me");
+      if (!getAccessToken()) {
+        await refreshAccessToken();
+      }
+
+      const me = await apiFetch<AuthUser>("/auth/me", { skipAuthRefresh: true });
       setUser(me);
     } catch (err) {
       const status = (err as Error & { status?: number }).status;
-      if (status === 401 || status === undefined) {
+
+      if (status === 401) {
+        try {
+          await refreshAccessToken();
+          const me = await apiFetch<AuthUser>("/auth/me", {
+            skipAuthRefresh: true
+          });
+          setUser(me);
+          return;
+        } catch {
+          clearAccessToken();
+          setUser(null);
+        }
+      } else if (status === undefined) {
+        clearAccessToken();
         setUser(null);
       }
     } finally {
@@ -47,7 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await apiFetch("/auth/logout", { method: "POST" }).catch(() => {});
+    await apiFetch("/auth/logout", {
+      method: "POST",
+      skipAuthRefresh: true
+    }).catch(() => {});
+    clearAccessToken();
     setUser(null);
   };
 

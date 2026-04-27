@@ -1,30 +1,81 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Heart } from "lucide-react";
-import { useGoogleLogin } from "@react-oauth/google";
-import { apiFetch } from "@/lib/api";
+import {
+  apiFetch,
+  refreshAccessToken,
+  setAccessToken,
+  setAccessTokenExpires
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-export default function LoginPage() {
+interface AuthResponse {
+  accessToken: string;
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const handledOAuthRef = useRef(false);
+
+  useEffect(() => {
+    const authStatus = searchParams.get("auth");
+    if (!authStatus || handledOAuthRef.current) {
+      return;
+    }
+
+    handledOAuthRef.current = true;
+
+    if (authStatus === "error") {
+      setError("Google sign-in failed");
+      return;
+    }
+
+    if (authStatus !== "success") {
+      return;
+    }
+
+    const completeGoogleSignIn = async () => {
+      setError("");
+      setLoading(true);
+
+      try {
+        const data = await refreshAccessToken();
+        setAccessToken(data.accessToken);
+        setAccessTokenExpires(data.accessTokenExpiresIn);
+        await refresh();
+        router.push("/cards");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Google sign-in failed");
+        handledOAuthRef.current = false;
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void completeGoogleSignIn();
+  }, [refresh, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await apiFetch("/auth/login", {
+      const result = await apiFetch<AuthResponse>("/auth/login", {
         method: "POST",
         body: { email, password }
       });
+      setAccessToken(result.accessToken);
       await refresh();
       router.push("/cards");
     } catch (err) {
@@ -34,37 +85,17 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleToken = async (accessToken: string) => {
-    setError("");
-    setLoading(true);
-    try {
-      await apiFetch("/auth/google/token", {
-        method: "POST",
-        body: { accessToken }
-      });
-      await refresh();
-      router.push("/cards");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
-    } finally {
-      setLoading(false);
-    }
+  const handleGoogleLogin = () => {
+    const googleUrl = new URL("/auth/google", API_BASE);
+    googleUrl.searchParams.set("returnTo", "/login");
+    window.location.href = googleUrl.toString();
   };
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
-      void handleGoogleToken(tokenResponse.access_token);
-    },
-    onError: () => setError("Google sign-in failed")
-  });
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white p-6 dark:bg-black">
-      {/* Gradient orbs */}
       <div className="pointer-events-none absolute left-[-10%] top-[-20%] h-[800px] w-[800px] rounded-full bg-teal-500/[0.08] blur-[160px] dark:bg-teal-500/[0.12]" />
       <div className="pointer-events-none absolute bottom-[-10%] right-[-10%] h-[600px] w-[600px] rounded-full bg-sky-500/[0.06] blur-[140px] dark:bg-sky-500/[0.08]" />
 
-      {/* Dot grid — light mode */}
       <div
         className="pointer-events-none absolute inset-0 dark:hidden"
         style={{
@@ -73,7 +104,6 @@ export default function LoginPage() {
           backgroundSize: "32px 32px"
         }}
       />
-      {/* Dot grid — dark mode */}
       <div
         className="pointer-events-none absolute inset-0 hidden dark:block"
         style={{
@@ -83,9 +113,7 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Card */}
       <div className="relative z-10 w-full max-w-[400px] rounded-2xl border border-slate-200/80 bg-white/90 p-8 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-white/[0.10] dark:bg-white/[0.04] dark:shadow-2xl dark:shadow-black/20">
-        {/* Logo */}
         <Link href="/" className="mb-8 flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white">
             <Heart className="h-3.5 w-3.5" />
@@ -108,10 +136,9 @@ export default function LoginPage() {
           </Link>
         </p>
 
-        {/* Google sign-in */}
         <button
           type="button"
-          onClick={() => googleLogin()}
+          onClick={handleGoogleLogin}
           disabled={loading}
           className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 dark:border-white/[0.10] dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/[0.08]"
         >
@@ -133,10 +160,9 @@ export default function LoginPage() {
               fill="#EA4335"
             />
           </svg>
-          Sign in with Google
+          Login With Google
         </button>
 
-        {/* Divider */}
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200 dark:border-white/[0.10]" />
@@ -148,7 +174,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Form */}
         <form
           onSubmit={(e) => {
             void handleSubmit(e);
@@ -208,5 +233,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageContent />
+    </Suspense>
   );
 }
