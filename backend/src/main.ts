@@ -4,9 +4,16 @@ import * as express from 'express';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
-  app.use(express.json({ limit: '10mb' }));
+  // Custom body parser with higher limit, but skip webhook endpoint (needs raw body)
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (req.originalUrl === '/billing/webhook') {
+      next();
+    } else {
+      express.json({ limit: '10mb' })(req, res, next);
+    }
+  });
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
 
