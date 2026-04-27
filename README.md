@@ -31,7 +31,7 @@ Fill in the required variables. Ask a teammate for the shared Stripe and Google 
 ### 2. Start the backend and database
 
 ```bash
-docker compose up -d --build backend
+docker compose up -d --build
 ```
 
 Backend API: `http://localhost:3001`
@@ -42,7 +42,7 @@ Backend API: `http://localhost:3001`
 cd frontend
 npm install
 cp ../.env .env.local
-npm run dev
+npm run start
 ```
 
 Frontend: `http://localhost:3000`
