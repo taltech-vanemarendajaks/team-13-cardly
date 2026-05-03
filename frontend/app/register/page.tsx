@@ -80,7 +80,7 @@ function RegisterPageContent() {
   };
 
   const handleGoogleLogin = () => {
-    const googleUrl = new URL("/auth/google", API_BASE);
+    const googleUrl = new URL("/api/auth/google", API_BASE);
     googleUrl.searchParams.set("returnTo", "/register");
     window.location.href = googleUrl.toString();
   };

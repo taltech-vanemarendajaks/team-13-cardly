@@ -17,7 +17,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 @Controller('auth')
 export class AuthController {
   private readonly refreshCookieName = 'refreshToken';
-  private readonly refreshCookiePath = '/auth';
+  private readonly refreshCookiePath = '/api/auth';
 
   constructor(
     private readonly auth: AuthService,

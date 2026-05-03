@@ -5,7 +5,7 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
-
+  app.setGlobalPrefix('api');
   // Custom body parser with higher limit, but skip webhook endpoint (needs raw body)
   app.use(
     (
